@@ -1,0 +1,873 @@
+<!doctype html>
+<!--
+  Tiny Garage Tycoon v1.0.0 (free demo: garage levels 1-2)
+  Copyright (c) 2026 alphazolo. All rights reserved.
+  Copying, redistribution, resale or modification is not permitted. See README.md for the license.
+-->
+
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Run a tiny repair shop in your browser. Fix brakes, wiring faults and flat tires in quick mini-games, hire help, upgrade your tools and grow your garage.">
+<title>Tiny Garage Tycoon (Free Demo)</title>
+<style>
+:root{--bg:#1b1f23;--panel:#262c32;--line:#3a424a;--ink:#ece8dd;--dim:#9aa3ab;--yel:#f2b630;--teal:#3fa796;--rust:#e0553a;--blue:#4a7fd1}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none}
+body{background:var(--bg);color:var(--ink);font:16px/1.35 system-ui,sans-serif}
+h1{font:400 1.5rem Impact,"Arial Narrow",sans-serif;letter-spacing:.02em;margin:0;color:var(--yel);text-shadow:2px 2px 0 #000}
+#app{height:100vh;height:100dvh;display:flex;flex-direction:column}
+#top{flex:none;display:flex;align-items:center;gap:.7rem;padding:.35rem .7rem;background:var(--panel);border-bottom:3px solid var(--yel)}
+.stats{display:flex;gap:.8rem;font-weight:700;flex:1;white-space:nowrap;font-size:.95rem}
+#vol{width:84px;flex:none}
+#stage{flex:1;min-height:0;display:flex;flex-direction:column;gap:.5rem;padding:.5rem}
+#sceneWrap{flex:none;display:flex;justify-content:center}
+#scene{width:min(100%,calc(36dvh*360/250));aspect-ratio:360/250;display:block;border:3px solid var(--yel);border-radius:8px;background:#1d2125;touch-action:manipulation;cursor:pointer}
+#panel{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+#tabs{flex:none;display:flex;border-bottom:1px solid var(--line)}
+#tabs button{flex:1;min-width:0;border:0;border-radius:0;border-bottom:3px solid transparent;background:transparent;padding:.2rem;font-size:.9rem}
+#tabs button.on{border-bottom-color:var(--yel);color:var(--yel);font-weight:700}
+#panes{flex:1;min-height:0;overflow:auto;padding:.6rem}
+.pane{display:none}.pane.on{display:block}
+#ctl{flex:none;display:flex;gap:.3rem;padding:.4rem .4rem calc(.4rem + env(safe-area-inset-bottom));background:var(--panel);border-top:3px solid var(--yel)}
+#ctl button{flex:1;min-width:0;padding:.2rem 0;font-size:.8rem}
+#bSound.off{text-decoration:line-through;opacity:.7}
+a{color:var(--yel)}
+button{font:inherit;min-height:44px;padding:.3rem .8rem;border:2px solid var(--line);background:#323a42;color:var(--ink);border-radius:6px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--yel)}button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+button.go{background:var(--yel);color:#201a05;border-color:var(--yel);font-weight:700}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:.5rem}#shopList{display:grid;gap:.5rem}
+.job,.bay,.item{border:1px solid var(--line);border-radius:6px;padding:.4rem .5rem;display:flex;gap:.5rem;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.item{flex-wrap:nowrap}.item button{flex:none}.job .go{margin-left:auto}
+.bay{border:4px solid transparent;border-image:repeating-linear-gradient(135deg,var(--yel) 0 10px,#222 10px 20px) 4;margin-bottom:.5rem;background:#1f252a}
+.bar{height:10px;background:#12161a;border-radius:5px;overflow:hidden;width:100%}
+.bar>i{display:block;height:100%;background:var(--teal)}.bar.pat>i{background:var(--yel)}
+.dim{color:var(--dim);font-size:.9rem}.done{color:var(--teal)}
+#modal{position:fixed;inset:0;background:#000b;display:grid;place-items:center;z-index:10;padding:1rem}
+#modal[hidden]{display:none}
+.card{background:var(--panel);border:2px solid var(--yel);border-radius:10px;padding:1rem;max-width:480px;width:100%;max-height:92vh;overflow:auto}
+#mBtns{display:flex;gap:.5rem;justify-content:flex-end;margin-top:.8rem;flex-wrap:wrap}
+#modal.sheet{background:transparent;align-items:end;pointer-events:none;padding:0}
+#modal.sheet .card{pointer-events:auto;max-width:560px;border-radius:12px 12px 0 0;max-height:56vh}
+.gbar{position:relative;height:34px;background:#12161a;border-radius:6px;margin:.6rem 0}
+.zone{position:absolute;top:0;bottom:0;background:#3fa79680;border:2px solid var(--teal)}
+.mark{position:absolute;top:-4px;bottom:-4px;width:6px;background:var(--rust);border-radius:3px;transform:translateX(-3px)}
+.pads{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin:.6rem 0}
+.pad{min-height:70px;opacity:.55;border:3px solid #0006}.pad.lit{opacity:1;filter:brightness(1.4);transform:scale(.97)}
+.big{width:100%;min-height:56px;font-size:1.1rem}
+#toast{position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);background:var(--yel);color:#201a05;padding:.5rem 1rem;border-radius:6px;font-weight:700;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;max-width:92vw;text-align:center}
+#toast.on{opacity:1}#toast.err{background:var(--rust);color:#fff}
+@media(max-width:520px){h1{display:none}.stats{gap:.6rem;font-size:.9rem}}
+@media(min-width:900px){
+  #stage{flex-direction:row;gap:.8rem;padding:.8rem}
+  #sceneWrap{flex:1.5;align-items:flex-start;min-width:0}
+  #scene{width:min(100%,calc((100dvh - 170px)*360/250))}
+  #panel{flex:1;max-width:520px}
+  #modal.sheet{place-items:end end;padding:0 .8rem .8rem}
+  #modal.sheet .card{max-width:430px;border-radius:12px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+/* compact fit for short screens */
+#panes{padding:.4rem}#shopList{gap:.3rem}.item{padding:.15rem .5rem}
+@media(max-height:700px){#scene{width:min(100%,calc(29dvh*360/250))}#stage{gap:.35rem;padding:.35rem .5rem}}
+#tabs button{white-space:nowrap;font-size:.84rem}
+
+/* levels + staff */
+#xpbar{flex:none;height:4px;background:#12161a}#xpfill{display:block;height:100%;width:0;background:var(--teal)}
+#staffList{display:grid;gap:.3rem}#tabs button{font-size:.78rem}
+#vol{width:70px}
+@media(max-width:420px){#top{gap:.4rem;padding:.35rem .5rem}.stats{gap:.4rem;font-size:.8rem}#vol{width:52px}}
+@media(max-width:420px){.stats{gap:.3rem}#vol{width:46px}#top{gap:.3rem}}
+textarea{width:100%;background:#12161a;color:var(--ink);border:1px solid var(--line);border-radius:6px;font:12px/1.3 monospace;padding:.4rem;resize:none}
+
+/* fuel station + larger staff */
+.staffgrid{display:grid;grid-template-columns:1fr 1fr;gap:.3rem;margin:.3rem 0}.staffgrid .item{padding:.2rem .4rem;font-size:.85rem}
+#fuelList{display:grid;gap:.3rem}.holdbtn{touch-action:none;user-select:none;-webkit-user-select:none}
+@media(max-width:520px){#tabs button{font-size:.7rem;padding:.2rem 0}}
+#demoTag{flex:none;background:var(--yel);color:#201a05;font-weight:800;font-size:.7rem;letter-spacing:.06em;padding:.1rem .4rem;border-radius:4px}
+@media(max-width:420px){#demoTag{font-size:.58rem;padding:.05rem .22rem;letter-spacing:.02em}}
+
+</style></head><body>
+<div id="app">
+  <header id="top">
+    <h1>Tiny Garage</h1>
+    <span id="demoTag" hidden>DEMO</span>
+    <div class="stats"><span id="sMoney"></span><span id="sDay"></span><span id="sSat"></span><span id="sLvl"></span></div>
+    <input id="vol" type="range" min="0" max="1" step="0.1" aria-label="Volume">
+  </header>
+  <div id="xpbar" aria-hidden="true"><i id="xpfill"></i></div>
+  <div id="stage">
+    <section id="sceneWrap"><canvas id="scene" width="720" height="500" role="img" aria-label="Your garage: customer cars wait in the street and are repaired in the bays. Tap a car or bay to act."></canvas></section>
+    <section id="panel">
+      <nav id="tabs" role="tablist" aria-label="Garage management">
+        <button role="tab" data-tab="bays">Bays</button>
+        <button role="tab" data-tab="queue" id="tQueue">Queue</button>
+        <button role="tab" data-tab="shop">Shop</button>
+        <button role="tab" data-tab="staff">Staff</button>
+        <button role="tab" data-tab="fuel">Fuel</button>
+        <button role="tab" data-tab="ach">Goals</button>
+        <button role="tab" data-tab="logp">Log</button>
+      </nav>
+      <div id="panes">
+        <div class="pane" role="tabpanel" data-pane="bays"><div id="bayList"></div></div>
+        <div class="pane" role="tabpanel" data-pane="queue"><ul id="qList"></ul></div>
+        <div class="pane" role="tabpanel" data-pane="shop"><div id="shopList"></div></div>
+        <div class="pane" role="tabpanel" data-pane="staff"><div id="staffList"></div></div>
+        <div class="pane" role="tabpanel" data-pane="fuel"><div id="fuelList"></div></div>
+        <div class="pane" role="tabpanel" data-pane="ach"><ul id="achList"></ul></div>
+        <div class="pane" role="tabpanel" data-pane="logp"><ul id="log"></ul></div>
+      </div>
+    </section>
+  </div>
+  <footer id="ctl">
+    <button id="bPause">Pause</button><button id="bSound">Sound</button><button id="bSave">Save</button>
+    <button id="bLoad">Load</button><button id="bHelp">Help</button><button id="bRestart">Restart</button>
+  </footer>
+</div>
+<div id="modal" hidden><div class="card" role="dialog" aria-modal="true"><div id="mBody"></div><div id="mBtns"></div></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<noscript>Tiny Garage Tycoon needs JavaScript.</noscript>
+<script>
+(() => {
+'use strict';
+const DEMO = true;                        // demo build: garage levels 1-2 only
+const VERSION = '1.0.0', DEMO_XP = 239;   // demo stops at the XP where garage level 3 would begin
+const DEMO_ACH = ['first', 'ten', 'perfect', 'rich', 'crew', 'loved'];  // the only achievements the demo can reach
+const STORE_URL = 'https://alphazolozyro.itch.io/tiny-garage-tycoon';   // change this one line if the itch.io page URL is different
+const STORE_TEXT = `Want the other 13 levels? The full game is on <a href="${STORE_URL}" target="_blank" rel="noopener">itch.io</a> and PromptBase, both under alphazolozyro.`;
+const KEY = DEMO ? 'tinyGarageTycoon.demo.save' : 'tinyGarageTycoon.save', VER = 1, DAY = 60, QMAX = 5;
+const TYPES = {
+  brake:    { name: 'Brake job',    tool: 'wrench',  game: 'timing',   base: 60 },
+  electric: { name: 'Wiring fault', tool: 'scanner', game: 'sequence', base: 80 },
+  tire:     { name: 'Flat tire',    tool: 'pump',    game: 'pump',     base: 40 }
+};
+const TOOLS = { wrench: 'Torque wrench', scanner: 'Diagnostic scanner', pump: 'Air compressor' };
+const ACH = {
+  first:  ['First customer', 'Finish your first repair', s => s.done >= 1],
+  ten:    ['Regular shop', 'Finish 10 repairs', s => s.done >= 10],
+  perfect:['Perfectionist', 'Score a perfect repair', s => s.perfect],
+  rich:   ['Four figures', 'Hold $1000', s => s.money >= 1000],
+  crew:   ['Hired help', 'Hire an employee', s => s.staff.length >= 1],
+  bays:   ['Big garage', 'Own 3 bays', s => s.bays >= 3],
+  tooled: ['Well equipped', 'Upgrade any tool to level 3', s => Object.values(s.tools).some(v => v >= 3)],
+  loved:  ['Local favourite', 'Reach 95 satisfaction', s => s.sat >= 95],
+  lvl5:   ['Busy workshop', 'Reach garage level 5', s => level() >= 5],
+  lvl10:  ['Elite garage', 'Reach garage level 10', s => level() >= 10],
+  lvl15:  ['Garage legend', 'Reach garage level 15', s => level() >= 15],
+  maxed:  ['Fully equipped', 'Max out all three tools', s => Object.values(s.tools).every(v => v >= TMAX)],
+  premium:['Premium service', 'Finish a Premium job', s => s.premium],
+  pump:   ['Gas station owner', 'Build the fuel station', s => s.fuelOn],
+  charge: ['Going electric', 'Build EV charging', s => s.evOn],
+  court:  ['Forecourt regular', 'Serve 25 forecourt cars', s => (s.fjobs || 0) >= 25]
+};
+const fresh = () => ({ money: 200, day: 1, dayT: 0, sat: 70, spawnT: 3, nextId: 1, bays: 1,
+  staff: [], tools: { wrench: 0, scanner: 0, pump: 0 }, queue: [], bayJobs: [null],
+  done: 0, failed: 0, lost: 0, earned: 0, perfect: false, ach: {}, tutorial: false,
+  sound: 2, vol: 0.5, over: false, log: [], xp: 0, lvl: 1, desk: false, deskT: 0, premium: false, train: false, finale: false, demoDone: false, fuelOn: false, evOn: false, fuelUp: 0, evUp: 0, fuelSlots: [null, null], evSlots: [null, null], fuelT: 5, fjobs: 0 });
+let S = fresh(), paused = false, modalPause = false, dirty = true, mg = null, mgBay = -1, mgKey = null, last = performance.now();
+const $ = id => document.getElementById(id);
+const rnd = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const TMAX = 9, LV = [0, 90, 240, 450, 750, 1140, 1650, 2280, 3000, 3900, 5000, 6400, 8100, 10100, 12500], FAIL0 = [0, 0.15, 0.30, 0.45, 0.60];
+const LVN = ['Backyard', 'Corner shop', 'Local garage', 'Trusted mechanics', 'Town favourite', 'Busy workshop', 'Regional service', 'Premium auto', 'Master garage', 'Elite garage', 'Elite service', 'Motorsport pit', 'Champion works', 'Hall of fame', 'Garage legend'];
+const LVU = { 2: 'Major jobs', 3: 'SUV customers and the Fuel station', 4: 'vans', 5: 'Premium jobs and pickups', 6: 'tool level 6', 7: 'tool level 7 and EV charging', 8: 'sports cars', 9: 'tool level 9 (max)', 10: 'Elite jobs (4x pay)', 11: 'Training center', 12: 'supercars and 2 more workers', 13: 'a second rush hour', 14: 'more Elite jobs', 15: 'Garage Legend finale' };
+/* vehicles: look (drawn on the scene) and effect on the job. b=body rect, cab/win=polygons, fw/rw=front/rear wheel x, wr=wheel radius, hood=[x,y,len] */
+const VEH = {
+  hatch:  { n: 'Hatchback', pay: 0.9, time: 0.9, pat: 1, lv: 1, b: [-31, -22, 62, 14], cab: [[-26, -22], [-20, -35], [10, -35], [18, -22]], win: [[[-22, -23], [-17, -33], [-2, -33], [-2, -23]], [[1, -23], [1, -33], [9, -33], [15, -23]]], fw: 19, rw: -19, wr: 7, hood: [18, -23, 12] },
+  sedan:  { n: 'Sedan', pay: 1, time: 1, pat: 1, lv: 1, b: [-36, -22, 72, 14], cab: [[-22, -22], [-14, -34], [12, -34], [22, -22]], win: [[[-17, -23], [-11, -32], [-1, -32], [-1, -23]], [[2, -23], [2, -32], [11, -32], [18, -23]]], fw: 22, rw: -22, wr: 7, hood: [22, -23, 15] },
+  suv:    { n: 'SUV', pay: 1.25, time: 1.15, pat: 1, lv: 3, b: [-36, -24, 72, 16], cab: [[-30, -24], [-26, -39], [14, -39], [24, -24]], win: [[[-25, -25], [-22, -36], [-3, -36], [-3, -25]], [[1, -25], [1, -36], [12, -36], [20, -25]]], fw: 23, rw: -23, wr: 8, hood: [24, -25, 12] },
+  van:    { n: 'Van', pay: 1.2, time: 1.2, pat: 1.1, lv: 4, b: [-38, -24, 76, 16], cab: [[-38, -24], [-38, -41], [16, -41], [30, -24]], win: [[[-32, -30], [-32, -37], [-6, -37], [-6, -30]], [[8, -27], [8, -38], [16, -38], [25, -27]]], fw: 24, rw: -24, wr: 8, hood: [30, -25, 8] },
+  pickup: { n: 'Pickup', pay: 1.35, time: 1.2, pat: 1, lv: 5, b: [-38, -22, 76, 14], cab: [[0, -22], [3, -36], [19, -36], [27, -22]], win: [[[6, -23], [7, -33], [17, -33], [22, -23]]], bed: [-38, -30, 36, 8], fw: 25, rw: -25, wr: 8, hood: [27, -23, 11] },
+  sports: { n: 'Sports car', pay: 1.6, time: 1.1, pat: 0.8, lv: 8, b: [-36, -19, 72, 11], cab: [[-14, -19], [-6, -29], [10, -29], [20, -19]], win: [[[-9, -20], [-4, -27], [8, -27], [14, -20]]], sp: [-37, -26, 9, 2], fw: 23, rw: -23, wr: 6.5, hood: [20, -20, 15] },
+  exotic: { n: 'Supercar', pay: 2.2, time: 1.2, pat: 0.6, lv: 12, b: [-38, -18, 76, 10], cab: [[-18, -18], [-6, -27], [8, -27], [26, -18]], win: [[[-12, -19], [-5, -25], [7, -25], [19, -19]]], sp: [-39, -25, 10, 2], fw: 25, rw: -25, wr: 6.5, hood: [26, -19, 12] }
+};
+const tier = j => j.tier || 1;
+const tname = j => ['', 'Major ', 'Premium ', 'Elite '][tier(j) - 1] + TYPES[j.type].name;
+const jl = j => LABEL[j.type] + ['', '', ' II', ' III', ' IV'][tier(j)];
+const skill = w => clamp(1 + Math.floor((w.jobs || 0) / 6), 1, S.train ? 7 : 5);
+function level() { let l = 1; for (let i = 1; i < LV.length; i++) if (S.xp >= LV[i]) l = i + 1; return l; }
+/* chance an employee botches a job: falls with tool level and skill, hits 0 when fully upgraded */
+const failP = (t, tool, sk) => Math.max(0, FAIL0[t] - 0.045 * tool - 0.05 * (sk - 1));
+const jobTime = (j, w) => 16 * (1 + 0.35 * (tier(j) - 1)) / (1 + 0.15 * S.tools[TYPES[j.type].tool]) / (1 + 0.1 * (skill(w) - 1)) * (VEH[j.veh] || VEH.sedan).time;
+const FUEL = { fuel: { name: 'Refuel', base: 18, game: 'fill' }, charge: { name: 'EV charge', base: 30, game: 'charge' } };
+const maxStaff = () => DEMO ? 2 : S.bays >= 4 ? (level() >= 12 ? 6 : 4) : 3;
+const fsJob = k => (k[0] === 'f' ? S.fuelSlots : S.evSlots)[+k[1]];
+const fuelTime = (j, w) => (j.type === 'fuel' ? 5 : 8) / (1 + 0.3 * (j.type === 'fuel' ? S.fuelUp : S.evUp)) / (1 + 0.08 * (skill(w) - 1));
+const fuelFail = (up, sk) => Math.max(0, 0.08 - 0.035 * up - 0.03 * (sk - 1));
+function findFuel() { for (const k of ['f0', 'f1', 'e0', 'e1']) { const j = fsJob(k); if (j && j.state === 'waiting') return k; } return null; }
+const rush = () => (S.dayT >= 25 && S.dayT < 40) || (level() >= 13 && S.dayT >= 5 && S.dayT < 12);
+/* seconds until the next customer: more bays, higher garage level and better satisfaction all bring more cars */
+function interval() {
+  const dm = (1 + 0.35 * (S.bays - 1)) * (1 + 0.12 * (Math.min(level(), 10) - 1) + 0.05 * Math.max(0, level() - 10)), sf = 0.6 + S.sat / 100 * 0.6;
+  let it = 13 / dm / sf * rnd(0.8, 1.2); if (rush()) it /= 1.8; return Math.max(it, 1.5);
+}
+
+/* ---------- feedback ---------- */
+function toast(msg, err) {
+  const t = $('toast'); t.textContent = msg; t.className = 'on' + (err ? ' err' : '');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.className = '', 2200);
+}
+function log(msg) { S.log.unshift(`Day ${S.day}: ${msg}`); S.log.length = Math.min(S.log.length, 30); dirty = true; }
+/* ---------- sound (all synthesized with Web Audio; no files) ---------- */
+let AC = null, master = null, sfxBus = null, musBus = null, analyser = null, noiseBuf = null, unlocked = false, musicOn = false, musicTimer = null, mStep = 0, nextT = 0, wasRush = false;
+function audio() {
+  if (AC) return AC; const C = window.AudioContext || window.webkitAudioContext; if (!C) return null;
+  AC = new C(); master = AC.createGain(); const comp = AC.createDynamicsCompressor(); analyser = AC.createAnalyser(); analyser.fftSize = 1024;
+  sfxBus = AC.createGain(); musBus = AC.createGain(); musBus.gain.value = 0.3; sfxBus.connect(master); musBus.connect(master); master.connect(comp); comp.connect(analyser); analyser.connect(AC.destination);
+  noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return AC;
+}
+function tone(f, d, type = 'sine', v = 0.3, at = 0, to = null, bus = sfxBus) {
+  const t = AC.currentTime + at, o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); g.connect(bus); o.start(t); o.stop(t + d + 0.02);
+}
+function noise(d, v = 0.3, kind = 'bandpass', f0 = 1000, f1 = null, at = 0, q = 1, bus = sfxBus) {
+  const t = AC.currentTime + at, s = AC.createBufferSource(), fl = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = noiseBuf; fl.type = kind; fl.Q.value = q; fl.frequency.setValueAtTime(f0, t);
+  if (f1) fl.frequency.exponentialRampToValueAtTime(f1, t + d); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); s.connect(fl); fl.connect(g); g.connect(bus); s.start(t); s.stop(t + d + 0.02);
+}
+function sfx(n, a) {
+  if (S.sound < 1 || S.vol <= 0 || !unlocked) return; const C = audio(); if (!C) return;
+  try {
+    if (C.state === 'suspended') C.resume(); const x = a || 0;
+    switch (n) {
+      case 'click': tone(900, 0.03, 'square', 0.05); break;
+      case 'glug': noise(0.1, 0.12, 'lowpass', 700, 300); tone(140, 0.08, 'sine', 0.08); break;
+      case 'zap': tone(500, 0.1, 'sawtooth', 0.07, 0, 1400); break;
+      case 'arrive': noise(0.7, 0.2, 'lowpass', 300, 900); noise(0.5, 0.18, 'lowpass', 900, 250, 0.55); tone(70, 0.9, 'sawtooth', 0.1, 0, 130); break;
+      case 'whoosh': noise(0.25, 0.22, 'bandpass', 500, 2500, 0, 2); break;
+      case 'wrench': for (let i = 0; i < 5; i++) { tone(2200, 0.02, 'square', 0.06, i * 0.045); noise(0.03, 0.1, 'highpass', 3000, null, i * 0.045); } break;
+      case 'bolt': tone(1760, 0.35, 'sine', 0.22); tone(2640, 0.25, 'sine', 0.12); noise(0.04, 0.2, 'highpass', 4000); tone(110, 0.1, 'sine', 0.3); break;
+      case 'boltmiss': tone(130, 0.18, 'triangle', 0.3, 0, 70); noise(0.08, 0.15, 'lowpass', 400); break;
+      case 'pad': { const f = [262, 330, 392, 523][x]; tone(f, 0.28, 'triangle', 0.28); tone(f * 2, 0.2, 'sine', 0.08); break; }
+      case 'pump': noise(0.12, 0.1 + 0.001 * x, 'highpass', 2500 + x * 40); tone(160 + x * 3, 0.06, 'sine', 0.1); break;
+      case 'burst': noise(0.35, 0.45, 'lowpass', 2500, 200); tone(90, 0.2, 'sine', 0.5, 0, 40); break;
+      case 'cash': tone(1318, 0.35, 'sine', 0.22); tone(1760, 0.5, 'sine', 0.22, 0.09); noise(0.06, 0.12, 'highpass', 6000, null, 0.09); break;
+      case 'ding': tone(1568, 0.25, 'sine', 0.1); break;
+      case 'fail': tone(330, 0.5, 'sawtooth', 0.18, 0, 110); tone(311, 0.5, 'sawtooth', 0.12, 0, 104); break;
+      case 'leave': tone(200, 0.35, 'sawtooth', 0.12, 0, 90); noise(0.3, 0.1, 'lowpass', 500, 150); break;
+      case 'buy': tone(988, 0.08, 'square', 0.1); tone(1319, 0.14, 'square', 0.1, 0.07); break;
+      case 'deny': tone(180, 0.12, 'square', 0.13); tone(150, 0.18, 'square', 0.13, 0.11); break;
+      case 'ach': [523, 659, 784].forEach((f, i) => tone(f, 0.3, 'triangle', 0.2, i * 0.1)); break;
+      case 'level': [523, 659, 784, 1047, 1319].forEach((f, i) => { tone(f, 0.45, 'triangle', 0.22, i * 0.09); tone(f / 2, 0.45, 'square', 0.05, i * 0.09); }); break;
+      case 'horn': [0, 0.3].forEach(t => { tone(392, 0.22, 'sawtooth', 0.16, t); tone(330, 0.22, 'sawtooth', 0.12, t); }); break;
+    }
+  } catch (e) { /* audio is optional: never break the game */ }
+}
+const BASS = [0, null, 0, null, 3, null, 0, null, 5, null, 3, null, 7, null, 5, 3, 0, null, 0, null, 3, null, 5, null, 3, null, 0, null, -2, null, -5, null];
+function musicTick() {
+  if (!AC || !musicOn) return; const sp = 60 / 88 / 4; if (nextT < AC.currentTime) nextT = AC.currentTime + 0.05;
+  while (nextT < AC.currentTime + 0.2) {
+    const s = mStep % 32, q = s % 16, at = nextT - AC.currentTime;
+    if (q % 8 === 0 || q === 6 || q === 14) tone(130, 0.16, 'sine', 0.5, at, 40, musBus);
+    if (q === 4 || q === 12) { noise(0.14, 0.2, 'bandpass', 1800, null, at, 1, musBus); tone(190, 0.08, 'triangle', 0.18, at, 120, musBus); }
+    if (q % 2 === 0) noise(0.04, q % 4 === 2 ? 0.09 : 0.05, 'highpass', 7000, null, at, 1, musBus);
+    if (BASS[s] != null) tone(55 * Math.pow(2, BASS[s] / 12), 0.22, 'triangle', 0.3, at, null, musBus);
+    if (s === 0) [220, 262, 330].forEach(f => tone(f, 2.6, 'sine', 0.035, at, null, musBus)); if (s === 16) [175, 220, 262].forEach(f => tone(f, 2.6, 'sine', 0.035, at, null, musBus));
+    mStep++; nextT += sp;
+  }
+}
+function syncMusic() {
+  if (master) master.gain.value = S.sound ? S.vol : 0;
+  const want = S.sound === 2 && S.vol > 0 && !paused && !S.over && !document.hidden && AC && AC.state === 'running';
+  if (want && !musicOn) { musicOn = true; mStep = 0; nextT = AC.currentTime + 0.1; musicTimer = setInterval(musicTick, 50); }
+  else if (!want && musicOn) { musicOn = false; clearInterval(musicTimer); }
+}
+function audioLevel() { if (!analyser) return 0; const d = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(d); let t = 0; for (const x of d) t += x * x; return Math.sqrt(t / d.length); }
+['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, () => { unlocked = true; const C = audio(); if (C && C.state === 'suspended') C.resume(); }, { passive: true }));
+
+/* ---------- save / load ---------- */
+function valid(s) {
+  return s && typeof s.money === 'number' && isFinite(s.money) && Array.isArray(s.queue) && Array.isArray(s.staff) &&
+    Array.isArray(s.bayJobs) && s.bayJobs.length === s.bays && s.tools && typeof s.sat === 'number' && typeof s.day === 'number';
+}
+function adopt(raw) {
+  const old = raw.xp == null; S = Object.assign(fresh(), raw);
+  S.staff.forEach(w => { if (w.jobs == null) w.jobs = old ? Math.floor(S.done / Math.max(1, S.staff.length) * 0.4) : 0; });
+  if (old) S.xp = S.done * 8;
+  if (DEMO) {  // a code from the full game is trimmed to what the demo allows
+    S.bays = Math.min(S.bays, 2); S.bayJobs = S.bayJobs.slice(0, S.bays); while (S.bayJobs.length < S.bays) S.bayJobs.push(null); S.staff = S.staff.slice(0, 2);
+    S.xp = Math.min(S.xp, DEMO_XP); S.fuelOn = S.evOn = S.train = S.finale = false; S.fuelUp = S.evUp = 0; S.fuelSlots = [null, null]; S.evSlots = [null, null];
+    for (const k in S.tools) S.tools[k] = Math.min(S.tools[k], 2);
+  }
+  S.lvl = level(); S.sound = S.sound === true ? 2 : S.sound === false ? 0 : S.sound; closeMg(); dirty = true;
+}
+function makeCode() {
+  const o = JSON.parse(JSON.stringify(S)); o.log = []; o.queue = []; o.bayJobs = o.bayJobs.map(() => null); o.staff.forEach(w => { w.bay = null; w.prog = 0; w.fs = null; }); o.fuelSlots = [null, null]; o.evSlots = [null, null];
+  const b = btoa(unescape(encodeURIComponent(JSON.stringify({ g: 'tiny-garage-tycoon', v: VER, s: o })))); let h = 0; for (let i = 0; i < b.length; i++) h = (h * 31 + b.charCodeAt(i)) >>> 0;
+  return 'TGT1.' + b + '.' + h.toString(36);
+}
+function readCode(txt) {
+  const p = String(txt).trim().split('.'); if (p.length !== 3 || p[0] !== 'TGT1') throw new Error('That is not a Tiny Garage code');
+  let h = 0; for (let i = 0; i < p[1].length; i++) h = (h * 31 + p[1].charCodeAt(i)) >>> 0;
+  if (h.toString(36) !== p[2]) throw new Error('The code is damaged or incomplete');
+  const d = JSON.parse(decodeURIComponent(escape(atob(p[1])))); if (d.g !== 'tiny-garage-tycoon' || !valid(d.s)) throw new Error('The code is not valid'); return d.s;
+}
+function save(manual) {
+  try {
+    const copy = JSON.parse(JSON.stringify(S));
+    copy.bayJobs = copy.bayJobs.map(j => j && Object.assign(j, { state: 'waiting' })); // unfinished repairs resume as "waiting"
+    copy.staff.forEach(w => { w.prog = 0; w.bay = null; w.fs = null; }); copy.fuelSlots = copy.fuelSlots.map(j => j && Object.assign(j, { state: 'waiting' })); copy.evSlots = copy.evSlots.map(j => j && Object.assign(j, { state: 'waiting' }));
+    localStorage.setItem(KEY, JSON.stringify({ v: VER, s: copy }));
+    if (manual) toast('Game saved'); return true;
+  } catch (e) { toast('Could not save: ' + e.message, true); return false; }
+}
+function load(manual) {
+  let raw;
+  try { raw = localStorage.getItem(KEY); } catch (e) { toast('Browser storage is blocked; saving is unavailable', true); return false; }
+  if (!raw) { if (manual) toast('No saved game yet', true); return false; }
+  try {
+    const d = JSON.parse(raw);
+    if (d.v !== VER || !valid(d.s)) throw new Error('unknown format');
+    adopt(d.s); if (manual) toast('Game loaded'); return true;
+  } catch (e) { toast('Saved game is damaged and was ignored', true); return false; }
+}
+
+/* ---------- economy ---------- */
+const cost = { bay: () => 300 * S.bays, hire: () => [150, 150, 150, 300, 600, 900][S.staff.length] || 900, tool: l => 120 * (l + 1), rent: () => 20 * S.bays, wage: w => 18 + 6 * skill(w), desk: () => 400, train: () => 1500 };
+function spend(n, what) {
+  if (S.money < n) { toast('Not enough money', true); sfx('deny'); return false; }
+  S.money -= n; log(`Spent $${n} on ${what}`); sfx('buy'); dirty = true; return true;
+}
+function spawn() {
+  if (S.queue.length >= QMAX) { S.sat = clamp(S.sat - 3, 0, 100); S.lost++; log('Queue full: a customer drove off'); return; }
+  const k = Object.keys(TYPES)[Math.floor(Math.random() * 3)];
+  const L = level(), r = Math.random(), p4 = L >= 10 ? Math.min(0.3, 0.06 * (L - 9)) : 0, p3 = L >= 5 ? Math.min(0.4, 0.08 * (L - 4)) : 0, p2 = Math.min(0.6, 0.1 * (L - 1));
+  const tr = r < p4 ? 4 : r < p4 + p3 ? 3 : r < p4 + p3 + p2 ? 2 : 1, pool = Object.keys(VEH).filter(v => VEH[v].lv <= L), veh = pool[Math.floor(Math.random() * pool.length)], V = VEH[veh];
+  const pat = Math.round((45 + 10 * (tr - 1)) * V.pat);
+  S.queue.push({ id: S.nextId++, type: k, tier: tr, veh, pay: Math.round(TYPES[k].base * [1, 1.7, 2.6, 4][tr - 1] * V.pay * rnd(0.8, 1.2)), pat, max: pat, state: 'queued' });
+  dirty = true; sfx('arrive');
+}
+function lvlCheck() {
+  const l = level();
+  if (l > (S.lvl || 1)) {
+    S.lvl = l; log(`Garage level ${l}: ${LVN[l - 1]}.` + (LVU[l] ? ' Unlocked: ' + LVU[l] : '')); toast(`Level up! ${LVN[l - 1]}`); sfx('level');
+    if (l >= 15 && !S.finale) { S.finale = true; setTimeout(showFinale, 900); }
+  }
+}
+function finish(job, bay, score, why, auto) {
+  const N = tname(job);
+  S.bayJobs[bay] = null;
+  if (vis[job.id]) vis[job.id].res = score < 0.3 ? 'fail' : 'ok';
+  if (score < 0.3) {
+    S.failed++; S.sat = clamp(S.sat - 6, 0, 100); const msg = why || 'Poor workmanship';
+    log(`Failed ${N}: ${msg}`); toast('Failed: ' + msg, true); floatText(bayCx(bay), 60, 'Failed', '#ff6b4a'); sfx('fail');
+  } else {
+    const pay = Math.round(job.pay * (0.6 + 0.5 * score));
+    S.money += pay; S.earned += pay; S.done++; S.sat = clamp(S.sat + (score >= 0.8 ? 4 : 1), 0, 100);
+    gainXP(Math.round(job.pay / 8 * (0.5 + 0.5 * score)));
+    if (score >= 0.99) S.perfect = true; if (tier(job) >= 3) S.premium = true;
+    log(`${N} done (${Math.round(score * 100)}%): +$${pay}`); floatText(bayCx(bay), 60, '+$' + pay, '#3fe08a'); sfx(auto ? 'ding' : 'cash'); lvlCheck();
+  }
+  dirty = true; checkAch();
+}
+function gainXP(n) {
+  S.xp = DEMO ? Math.min(DEMO_XP, S.xp + n) : S.xp + n;
+  if (DEMO && S.xp >= DEMO_XP && !S.demoDone) { S.demoDone = true; setTimeout(showDemoEnd, 900); }
+}
+function checkAch() {
+  for (const k in ACH) if (!S.ach[k] && ACH[k][2](S)) { S.ach[k] = true; toast('Achievement: ' + ACH[k][0]); log('Achievement: ' + ACH[k][0]); sfx('ach'); dirty = true; }
+}
+function sendToBay(id, bay) {
+  const i = S.queue.findIndex(j => j.id === id), b = (bay != null && S.bayJobs[bay] === null) ? bay : S.bayJobs.indexOf(null);
+  if (i < 0 || b < 0) return false;
+  const [job] = S.queue.splice(i, 1); job.state = 'waiting'; S.bayJobs[b] = job; dirty = true; sfx('whoosh'); return true;
+}
+function tick(dt) {
+  if (S.over) return;
+  const rr0 = rush(); if (rr0 && !wasRush) { sfx('horn'); toast('Rush hour! More customers are coming'); } wasRush = rr0;
+  S.spawnT -= dt; if (S.spawnT <= 0) { spawn(); S.spawnT = interval(); }
+  if (S.fuelOn || S.evOn) {
+    S.fuelT -= dt; if (S.fuelT <= 0) { spawnFuel(); S.fuelT = rnd(5, 9) / (1 + 0.08 * (level() - 1)) / (rush() ? 1.5 : 1); }
+    [S.fuelSlots, S.evSlots].forEach(arr => arr.forEach((j, i) => { if (j && j.state === 'waiting') { j.pat -= dt; if (j.pat <= 0) { arr[i] = null; if (vis[j.id]) vis[j.id].res = 'lost'; S.lost++; S.sat = clamp(S.sat - 2, 0, 100); log('A forecourt customer drove off'); sfx('leave'); dirty = true; } } }));
+  }
+  if (S.desk && S.queue.length && S.bayJobs.includes(null)) { S.deskT = (S.deskT || 0) + dt; if (S.deskT >= 1.5) { S.deskT = 0; sendToBay(S.queue[0].id); } } else S.deskT = 0;
+  for (const j of S.queue) j.pat -= dt;
+  const gone = S.queue.filter(j => j.pat <= 0);
+  if (gone.length) { S.queue = S.queue.filter(j => j.pat > 0); gone.forEach(j => { if (vis[j.id]) vis[j.id].res = 'lost'; }); S.lost += gone.length; S.sat = clamp(S.sat - 8 * gone.length, 0, 100); log(`${gone.length} customer(s) gave up waiting`); sfx('leave'); dirty = true; }
+  S.staff.forEach((w, wi) => {
+    if (w.bay == null && w.fs == null) {
+      const tryBay = () => { const b = S.bayJobs.findIndex(j => j && j.state === 'waiting'); if (b >= 0) { w.bay = b; w.prog = 0; S.bayJobs[b].state = 'auto'; dirty = true; return true; } return false; };
+      const tryFuel = () => { const k = findFuel(); if (k) { w.fs = k; w.prog = 0; fsJob(k).state = 'auto'; dirty = true; return true; } return false; };
+      if (wi >= 4) { if (!tryFuel()) tryBay(); } else if (!tryBay()) tryFuel();
+    } else if (w.bay != null) {
+      const job = S.bayJobs[w.bay]; if (!job) { w.bay = null; return; }
+      w.prog += dt / jobTime(job, w);
+      if (w.prog >= 1) {
+        const b = w.bay, tl = S.tools[TYPES[job.type].tool], sk = skill(w), fp = failP(tier(job), tl, sk), ok = Math.random() >= fp;
+        w.bay = null; w.prog = 0; w.jobs = (w.jobs || 0) + 1;
+        const why = `Employee ${wi + 1} (skill ${sk}) botched it, a ${Math.round(fp * 100)}% risk. Upgrade the ${TOOLS[TYPES[job.type].tool]} or let staff gain experience`;
+        finish(job, b, ok ? Math.min(0.95, 0.75 + 0.03 * tl + 0.02 * (sk - 1)) : 0, why, true);
+        if (skill(w) > sk) log(`Employee ${wi + 1} reached skill ${skill(w)}`);
+      }
+    } else {
+      const job = fsJob(w.fs); if (!job) { w.fs = null; return; }
+      w.prog += dt / fuelTime(job, w);
+      if (w.prog >= 1) {
+        const k = w.fs, up = job.type === 'fuel' ? S.fuelUp : S.evUp, sk = skill(w), fp = fuelFail(up, sk), ok = Math.random() >= fp;
+        w.fs = null; w.prog = 0; w.jobs = (w.jobs || 0) + 1;
+        finishF(job, k, ok ? Math.min(0.95, 0.8 + 0.05 * up + 0.02 * (sk - 1)) : 0, `Employee ${wi + 1} (skill ${sk}) ${job.type === 'fuel' ? 'spilled fuel' : 'overheated the charger'}, a ${Math.round(fp * 100)}% risk. Upgrade the ${job.type === 'fuel' ? 'pumps' : 'chargers'} or gain experience`, true);
+      }
+    }
+  });
+  S.dayT += dt;
+  if (S.dayT >= DAY) {
+    S.dayT -= DAY; const bill = cost.rent() + S.staff.reduce((a, w) => a + cost.wage(w), 0) + (S.fuelOn ? 15 : 0) + (S.evOn ? 25 : 0);
+    S.money -= bill; log(`Day ${S.day} bills: $${bill} (rent + wages)`); S.day++; dirty = true;
+    if (S.money < -150) { S.over = true; save(false); showOver(); }
+    else save(false);
+  }
+  checkAch();
+}
+
+/* ---------- mini-games (each returns a controller) ---------- */
+const GAMES = {
+  timing(box, lvl, end, T = 1) {
+    const bolts = clamp(3 + (T - 1) - (lvl >= 3 ? 1 : 0), 2, 4);
+    const c = { pos: 0, dir: 1, bolt: 0, bolts, res: [], zone: Math.max(12, 22 + 4 * lvl - 4 * (T - 1)), zc: rnd(30, 70) };
+    box.innerHTML = `<p>Tighten ${bolts} bolts. Stop the marker inside the green zone.</p><div class="gbar"><i class="zone"></i><b class="mark"></b></div><p id="mgInfo">Bolt 1 of ${bolts}</p><button class="big go" id="act">Tighten (Space)</button>`;
+    const z = box.querySelector('.zone'), m = box.querySelector('.mark');
+    z.style.left = (c.zc - c.zone / 2) + '%'; z.style.width = c.zone + '%';
+    c.update = dt => { c.pos += c.dir * (70 + 25 * c.bolt) * dt; if (c.pos > 100) { c.pos = 100; c.dir = -1; } if (c.pos < 0) { c.pos = 0; c.dir = 1; } m.style.left = c.pos + '%'; };
+    c.act = () => {
+      const d = Math.abs(c.pos - c.zc), h = c.zone / 2;
+      c.res.push(d <= h ? 1 : d <= h + 8 ? 0.5 : 0); sfx(d <= h ? 'bolt' : 'boltmiss');
+      if (++c.bolt >= c.bolts) { const sc = c.res.reduce((a, b) => a + b) / c.bolts; return end(sc, sc < 0.3 ? 'Bolts were torqued outside spec' : ''); }
+      c.zc = rnd(30, 70); z.style.left = (c.zc - c.zone / 2) + '%'; box.querySelector('#mgInfo').textContent = `Bolt ${c.bolt + 1} of ${c.bolts}`;
+    };
+    c.prog = () => c.bolt / c.bolts;
+    return c;
+  },
+  sequence(box, lvl, end, T = 1) {
+    const cols = ['#e0553a', '#f2b630', '#3fa796', '#4a7fd1'], len = clamp(4 + (T - 1) - (lvl >= 3 ? 1 : 0), 3, 6);
+    const c = { seq: Array.from({ length: len }, () => Math.floor(Math.random() * 4)), state: 'show', i: 0, t: 0, miss: 0, step: lvl >= 5 ? 0.4 : 0.5 };
+    box.innerHTML = `<p id="mgInfo">Watch the fault code…</p><div class="pads">${cols.map((x, k) => `<button class="pad" data-k="${k}" style="background:${x}" aria-label="Pad ${k + 1}"></button>`).join('')}</div>`;
+    const pads = [...box.querySelectorAll('.pad')], info = box.querySelector('#mgInfo');
+    const lit = k => pads.forEach((p, n) => p.classList.toggle('lit', n === k));
+    c.update = dt => {
+      if (c.state !== 'show') return; c.t += dt;
+      const n = Math.floor(c.t / c.step), on = (c.t % c.step) < c.step * 0.7;
+      if (n >= c.seq.length) { lit(-1); c.state = 'input'; c.i = 0; info.textContent = `Repeat the ${len}-step code`; return; }
+      lit(on ? c.seq[n] : -1);
+    };
+    c.press = k => {
+      if (c.state !== 'input') return; sfx('pad', k);
+      if (k === c.seq[c.i]) { if (++c.i >= c.seq.length) end(clamp(1 - c.miss * 0.3, 0, 1)); }
+      else { c.miss++; c.i = 0; info.textContent = `Wrong pad (${c.miss}/3)`; if (c.miss >= 3) end(0, 'Misread the fault code three times'); }
+    };
+    pads.forEach(p => p.onclick = () => c.press(+p.dataset.k));
+    c.prog = () => c.state === 'show' ? 0 : c.i / c.seq.length;
+    return c;
+  },
+  pump(box, lvl, end, T = 1) {
+    const need = Math.max(1.5, 3 + 0.5 * (T - 1) - 0.25 * lvl);
+    const c = { p: 0, hold: 0, need, t: 14, burst: 0, lo: 58 - 2 * lvl, hi: 76 + 2 * lvl };
+    box.innerHTML = `<p>Tap to pump. Keep pressure in the green zone for ${need.toFixed(1)} seconds. Pumping too hard bursts the tire.</p><div class="gbar"><i class="zone"></i><b class="mark"></b></div><p id="mgInfo"></p><button class="big go" id="act">Pump (Space)</button>`;
+    const z = box.querySelector('.zone'), m = box.querySelector('.mark'), info = box.querySelector('#mgInfo');
+    z.style.left = c.lo + '%'; z.style.width = (c.hi - c.lo) + '%';
+    c.act = () => { c.p = Math.min(100, c.p + 9 + lvl * 0.5); sfx('pump', c.p); };
+    c.update = dt => {
+      c.p = Math.max(0, c.p - 14 * dt); c.t -= dt;
+      if (c.p >= 96) { c.burst++; c.p = 0; c.hold = Math.max(0, c.hold - 1); sfx('burst'); }
+      if (c.p >= c.lo && c.p <= c.hi) c.hold += dt;
+      m.style.left = c.p + '%'; info.textContent = `Hold ${c.hold.toFixed(1)} / ${need.toFixed(1)}s · time ${Math.ceil(Math.max(c.t, 0))}s · bursts ${c.burst}`;
+      if (c.hold >= need) end(clamp(1 - c.burst * 0.25, 0.4, 1)); else if (c.t <= 0) end(c.hold / need * 0.6, 'Ran out of time before the tire held pressure');
+    };
+    c.prog = () => Math.min(1, c.hold / need);
+    return c;
+  }
+};
+
+/* ---------- fuel station and EV charging ---------- */
+function spawnFuel() {
+  if (!S.fuelOn && !S.evOn) return;
+  const kind = S.evOn && (!S.fuelOn || Math.random() < 0.4) ? 'charge' : 'fuel', arr = kind === 'fuel' ? S.fuelSlots : S.evSlots, i = arr.indexOf(null); if (i < 0) return;
+  const pool = Object.keys(VEH).filter(v => VEH[v].lv <= level()), veh = pool[Math.floor(Math.random() * pool.length)], pat = kind === 'fuel' ? 30 : 40;
+  arr[i] = { id: S.nextId++, type: kind, veh, pay: Math.round(FUEL[kind].base * VEH[veh].pay * rnd(0.85, 1.15)), pat, max: pat, state: 'waiting' }; dirty = true; sfx('arrive');
+}
+function finishF(job, k, score, why, auto) {
+  const arr = k[0] === 'f' ? S.fuelSlots : S.evSlots, i = +k[1], fx = FXC[(k[0] === 'f' ? 0 : 2) + i], N = FUEL[job.type].name;
+  arr[i] = null; if (vis[job.id]) vis[job.id].res = score < 0.3 ? 'fail' : 'ok';
+  if (score < 0.3) { S.failed++; S.sat = clamp(S.sat - 3, 0, 100); const m = why || 'Poor workmanship'; log(`Failed ${N}: ${m}`); if (!auto) toast('Failed: ' + m, true); floatText(fx, 222, 'Failed', '#ff6b4a'); sfx('fail'); }
+  else {
+    const pay = Math.round(job.pay * (0.6 + 0.5 * score)); S.money += pay; S.earned += pay; S.done++; S.fjobs = (S.fjobs || 0) + 1;
+    S.sat = clamp(S.sat + (score >= 0.8 ? 2 : 0.5), 0, 100); gainXP(Math.round(job.pay / 8 * (0.5 + 0.5 * score)));
+    log(`${N} done: +$${pay}`); floatText(fx, 222, '+$' + pay, '#3fe08a'); sfx(auto ? 'ding' : 'cash'); lvlCheck();
+  }
+  dirty = true; checkAch();
+}
+GAMES.fill = (box, up, end) => {
+  const band = 14 + 3 * up, c = { v: 0, holding: false, done: false, snd: 0, spd: 40 * (1 + 0.25 * up), lo: 92 - band / 2, hi: Math.min(99, 92 + band / 2) };
+  box.innerHTML = `<p>Hold to pump fuel. Release when the gauge is inside the green band. Past 100% spills.</p><div class="gbar"><i class="zone"></i><b class="mark"></b></div><p id="mgInfo">Tank 0%</p><button class="big go holdbtn" id="hold">Hold to fill (Space)</button>`;
+  const z = box.querySelector('.zone'), m = box.querySelector('.mark'), info = box.querySelector('#mgInfo'), btn = box.querySelector('#hold');
+  z.style.left = c.lo + '%'; z.style.width = (c.hi - c.lo) + '%';
+  c.down = () => { if (!c.done) c.holding = true; };
+  c.up = () => { if (!c.holding || c.done) return; c.holding = false; c.done = true; sfx('bolt'); const v = c.v;
+    const sc = v >= c.lo && v <= c.hi ? 1 : v < c.lo ? Math.max(0, v / c.lo * 0.7) : 0.6; end(sc, sc < 0.3 ? 'Released the nozzle too early' : ''); };
+  c.update = dt => {
+    if (c.holding && !c.done) { c.v += c.spd * dt; c.snd -= dt; if (c.snd <= 0) { sfx('glug'); c.snd = 0.12; } if (c.v >= 100) { c.done = true; c.holding = false; sfx('burst'); end(0, 'Fuel overflowed and spilled'); return; } }
+    m.style.left = clamp(c.v, 0, 100) + '%'; info.textContent = 'Tank ' + Math.round(c.v) + '%';
+  };
+  btn.addEventListener('pointerdown', e => { e.preventDefault(); c.down(); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => btn.addEventListener(ev, () => c.up()));
+  c.prog = () => clamp(c.v / 100, 0, 1);
+  return c;
+};
+GAMES.charge = (box, up, end) => {
+  const c = { v: 0, heat: 0, t: 14, over: 0, lock: 0, snd: 0, spd: 13 * (1 + 0.25 * up) };
+  box.innerHTML = `<p>The car charges by itself, but the charger heats up. Tap Cool to keep the heat out of the red until the battery is full.</p><div class="gbar"><i class="zone" style="left:0;width:100%;background:#3fa79640"></i><b class="mark" id="chg"></b></div><div class="gbar"><i class="zone" style="left:80%;width:20%;background:#e0553a80;border-color:#e0553a"></i><b class="mark" id="heat"></b></div><p id="mgInfo"></p><button class="big go" id="act">Cool (Space)</button>`;
+  const cm = box.querySelector('#chg'), hm = box.querySelector('#heat'), info = box.querySelector('#mgInfo');
+  c.act = () => { c.heat = Math.max(0, c.heat - 12); sfx('pump', 20); };
+  c.update = dt => {
+    c.t -= dt;
+    if (c.lock > 0) c.lock -= dt; else { c.v += c.spd * dt; c.heat += 18 * dt; c.snd -= dt; if (c.snd <= 0) { sfx('zap'); c.snd = 0.4; } }
+    c.heat = Math.max(0, c.heat - 4 * dt);
+    if (c.heat >= 100) { c.over++; c.lock = 1.2; c.heat = 60; sfx('burst'); }
+    cm.style.left = clamp(c.v, 0, 100) + '%'; hm.style.left = clamp(c.heat, 0, 100) + '%';
+    info.textContent = `Charge ${Math.round(c.v)}% · heat ${Math.round(c.heat)}% · overheats ${c.over} · time ${Math.ceil(Math.max(c.t, 0))}s`;
+    if (c.v >= 100) end(clamp(1 - c.over * 0.3, 0.4, 1)); else if (c.t <= 0) end(c.v / 100 * 0.5, 'Charging took too long');
+  };
+  c.prog = () => clamp(c.v / 100, 0, 1);
+  return c;
+};
+function startFuel(k) {
+  const job = fsJob(k); if (!job || job.state !== 'waiting' || mg) return;
+  job.state = 'manual'; mgKey = k; dirty = true; sfx('wrench'); if (document.activeElement) document.activeElement.blur();
+  modal(`<h2>${FUEL[job.type].name}</h2><div id="mgBox"></div>`, [['Give up (no penalty)', () => { job.state = 'waiting'; closeMg(); dirty = true; }]], false, true);
+  let ended = false;
+  mg = GAMES[FUEL[job.type].game]($('mgBox'), job.type === 'fuel' ? S.fuelUp : S.evUp, (score, why) => { if (ended) return; ended = true; const kk = mgKey; mg = null; mgKey = null; closeModal(); finishF(job, kk, score, why, false); });
+}
+
+/* ---------- modal ---------- */
+function modal(html, btns, pause = true, sheet = false) {
+  $('mBody').innerHTML = html; const b = $('mBtns'); b.innerHTML = '';
+  btns.forEach(([label, fn, cls]) => { const x = document.createElement('button'); x.textContent = label; if (cls) x.className = cls; x.onclick = fn; b.appendChild(x); });
+  $('modal').classList.toggle('sheet', sheet); $('modal').hidden = false; modalPause = pause; const f = b.querySelector('button'); if (f) f.focus();
+}
+function closeModal() { $('modal').hidden = true; $('modal').classList.remove('sheet'); modalPause = false; }
+function closeMg() { mg = null; mgBay = -1; mgKey = null; if (!$('modal').hidden) closeModal(); }
+function startRepair(bay) {
+  const job = S.bayJobs[bay]; if (!job || job.state !== 'waiting' || mg) return;
+  job.state = 'manual'; mgBay = bay; dirty = true; sfx('wrench');
+  const T = TYPES[job.type];
+  modal(`<h2>${tname(job)} · bay ${bay + 1}</h2><div id="mgBox"></div>`, [['Give up (no penalty)', () => { job.state = 'waiting'; closeMg(); dirty = true; }]], false, true);
+  if (document.activeElement) document.activeElement.blur();
+  let ended = false;
+  mg = GAMES[T.game]($('mgBox'), S.tools[T.tool], (score, why) => { if (ended) return; ended = true; const b = mgBay; mg = null; mgBay = -1; closeModal(); finish(job, b, score, why); }, tier(job));
+}
+function showExport() {
+  const code = makeCode();
+  modal(`<h2>Garage Pass (save code)</h2><p class="dim">Keep this code safe. It restores your whole garage here, and it is designed to carry your garage into a future sequel.</p><textarea id="codeBox" readonly rows="6">${code}</textarea>`,
+    [['Copy', () => { const b = $('codeBox'); b.select(); (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject()).then(() => toast('Code copied'), () => toast('Select the text and copy it', true)); }, 'go'], ['Close', closeModal]]);
+  $('codeBox').select();
+}
+function showImport() {
+  modal('<h2>Load a Garage Pass</h2><p class="dim">Paste a code. This replaces your current garage.</p><textarea id="codeBox" rows="6" placeholder="TGT1...."></textarea>',
+    [['Load code', () => { try { const raw = readCode($('codeBox').value); closeModal(); adopt(raw); toast('Garage loaded from code'); } catch (e) { toast(e.message, true); } }, 'go'], ['Cancel', closeModal]]);
+}
+function showDemoEnd() {
+  modal(`<h2>Demo complete!</h2><p>You finished garage levels 1 and 2: ${S.done} repairs and $${Math.round(S.earned)} earned.</p>
+  <p><b>The full game adds:</b></p><p class="dim">13 more garage levels (15 in all) · 7 vehicle types · Major, Premium and Elite jobs · up to 4 bays and 6 workers · a fuel station and EV charging with their own mini-games · 9 tool levels · a training center · the Garage Legend finale.</p>
+  <p class="dim">${STORE_TEXT}</p><p class="dim">Your Garage Pass code (Goals tab) can be loaded into the full game to keep your progress.</p>`,
+    [['Get the full game', () => window.open(STORE_URL, '_blank', 'noopener'), 'go'], ['Show Garage Pass', showExport], ['Keep playing the demo', closeModal]]);
+}
+function showFinale() {
+  modal(`<h2>Garage Legend!</h2><p>You reached garage level 15 on day ${S.day}.</p><p>${S.done} repairs, $${Math.round(S.earned)} earned, ${S.staff.length} employees, ${S.bays} bays.</p><p class="dim">You can keep playing in free play. Your Garage Pass code is designed to carry this garage into a future sequel.</p>`, [['Show Garage Pass', showExport, 'go'], ['Keep playing', closeModal]]);
+}
+function showHelp() {
+  S.tutorial = true;
+  modal(`<h2>How to run the garage</h2>${DEMO ? '<p class="dim"><b>DEMO:</b> garage levels 1 to 2, up to 2 bays and 2 workers. The full game has 15 levels. ' + STORE_TEXT + '</p>' : ''}
+  <p><b>1.</b> Customers join the street queue and lose patience. Tap a car (or use <b>Queue</b>) to send it to a bay, or tap an empty bay.</p>
+  <p><b>2.</b> Tap a car waiting in a bay to repair it. Brakes are a timing game, wiring a memory game, flat tires a pumping game.</p>
+  <p><b>3.</b> <b>Level up your garage (15 levels).</b> Higher levels bring more customers, new vehicles (SUVs, vans, pickups, sports cars, supercars pay more but may lose patience sooner) and bigger <b>Major</b>, <b>Premium</b> and <b>Elite</b> jobs. A rush hour hits every day.</p>
+  <p><b>4.</b> <b>Shop:</b> tool upgrades make repairs faster and employees more reliable. More bays and a receptionist increase capacity.</p>
+  <p><b>5.</b> <b>Staff:</b> employees gain skill with every job. Their failure chance is shown in the Bays tab and drops to 0 when fully upgraded. Failures always say why in the Log.</p>
+  <p><b>6.</b> ${DEMO ? '(Full game) ' : ''}<b>Fuel station</b> (garage level 3) and <b>EV charging</b> (level 7): build them in the Fuel tab. Tap a car at a pump to refuel it yourself (hold and release in the green band), or at a charger (keep it cool). Idle employees serve them too. You can hire a 4th employee once bay 4 is built, and up to 6 from garage level 12.</p>
+  <p><b>7.</b> The <b>Sound</b> button cycles sound effects and music, effects only, and muted. The <b>Goals</b> tab has your Garage Pass save code.</p>
+  <p class="dim">Autosaves each day. If money falls below -$150 the shop closes.</p><p class="dim">Tiny Garage Tycoon v${VERSION}${DEMO ? ' (demo)' : ''} · © 2026 alphazolo. All rights reserved.</p>`, [['Start playing', closeModal, 'go']]);
+}
+function showOver() { modal(`<h2>Shop closed</h2><p>The bank has closed the garage on day ${S.day}. You finished ${S.done} repairs and earned $${S.earned}.</p>`, [['Start a new shop', restart, 'go']]); }
+function restart() { closeMg(); S = fresh(); S.tutorial = true; try { localStorage.removeItem(KEY); } catch (e) { } dirty = true; toast('New shop opened'); }
+
+/* ---------- rendering ---------- */
+function render() {
+  const L = level();
+  $('qList').innerHTML = S.queue.length ? S.queue.map(j => `<li class="job"><span><b>${tname(j)}</b> · $${j.pay}</span>
+    <button class="go" data-send="${j.id}" ${S.bayJobs.includes(null) ? '' : 'disabled title="All bays are busy"'}>Send to bay</button>
+    <div class="bar pat"><i data-pat="${j.id}"></i></div></li>`).join('') : '<li class="dim">No one waiting. More bays, a higher garage level and happy customers bring more cars.</li>';
+  $('bayList').innerHTML = S.bayJobs.map((j, i) => {
+    if (!j) return `<div class="bay"><b>Bay ${i + 1}</b><span class="dim">Empty. Send a customer here.</span></div>`;
+    const w = S.staff.findIndex(x => x.bay === i), rel = w >= 0 ? Math.round((1 - failP(tier(j), S.tools[TYPES[j.type].tool], skill(S.staff[w]))) * 100) : 0;
+    return `<div class="bay"><span><b>Bay ${i + 1}</b> · ${tname(j)} · $${j.pay}</span>
+      ${j.state === 'waiting' ? `<button class="go" data-repair="${i}">Repair</button>` : w >= 0 ? `<span class="dim">Employee ${w + 1} · ${rel}% reliable</span><div class="bar"><i data-prog="${w}"></i></div>` : '<span class="dim">In progress</span>'}</div>`;
+  }).join('');
+  $('shopList').innerHTML = Object.keys(TOOLS).map(k => { const l = S.tools[k], lock = l < TMAX && L < l + 1;
+    return `<div class="item"><span>${TOOLS[k]} <span class="dim">lvl ${l}/${TMAX}</span></span><button data-tool="${k}" ${l >= TMAX || lock ? 'disabled' : ''}>${l >= TMAX ? 'Maxed' : lock ? (DEMO ? 'Full game' : 'Needs garage Lv ' + (l + 1)) : 'Upgrade $' + cost.tool(l)}</button></div>`; }).join('') +
+    `<div class="item"><span>Service bay <span class="dim">${S.bays}/${DEMO ? 2 : 4} · rent $20/day each</span></span><button data-bay ${S.bays >= (DEMO ? 2 : 4) ? 'disabled' : ''}>${S.bays >= (DEMO ? 2 : 4) ? (DEMO ? 'Full game' : 'Max') : 'Build $' + cost.bay()}</button></div>
+     <div class="item"><span>Receptionist <span class="dim">auto-sends cars to bays</span></span><button data-desk ${S.desk ? 'disabled' : ''}>${S.desk ? 'Hired' : 'Hire $' + cost.desk()}</button></div>`;
+  const trainRow = `<div class="item"><span>Training center <span class="dim">skill cap 5 to 7</span></span><button data-train ${S.train || L < 11 ? 'disabled' : ''}>${S.train ? 'Built' : L < 11 ? (DEMO ? 'Full game' : 'Needs garage Lv 11') : 'Build $' + cost.train()}</button></div>`;
+  const mx = maxStaff(), full = S.staff.length >= mx, hireLbl = !full ? 'Hire $' + cost.hire() : DEMO ? 'Full game' : S.bays < 4 ? 'Build bay 4 first' : level() < 12 ? 'Lv 12 for more' : 'Full';
+  $('staffList').innerHTML = `<div class="item"><span>Employees <span class="dim">${S.staff.length}/${mx} · skill grows with jobs</span></span><button data-hire ${full ? 'disabled' : ''}>${hireLbl}</button></div>` +
+    '<div class="staffgrid">' + S.staff.map((w, i) => `<div class="item"><span><b>E${i + 1}</b> · skill ${skill(w)}/${S.train ? 7 : 5}<br><span class="dim">$${cost.wage(w)}/day · ${w.bay != null ? 'bay ' + (w.bay + 1) : w.fs ? 'forecourt' : 'free'}</span></span></div>`).join('') + '</div>' +
+    (S.staff.length ? '' : '<p class="dim">Employees repair cars on their own and get faster and more reliable with experience.</p>') + trainRow;
+  $('fuelList').innerHTML = DEMO ? '<p class="dim">The fuel station, EV chargers, pump and charging mini-games and the forecourt are part of the full game (garage levels 3 to 15).</p>' : `<div class="item"><span>Fuel station <span class="dim">2 pumps · $15/day</span></span><button data-fuelbuild ${S.fuelOn || L < 3 ? 'disabled' : ''}>${S.fuelOn ? 'Built' : L < 3 ? 'Needs garage Lv 3' : 'Build $800'}</button></div>
+    <div class="item"><span>EV charging <span class="dim">2 chargers · $25/day</span></span><button data-evbuild ${S.evOn || L < 7 || !S.fuelOn ? 'disabled' : ''}>${S.evOn ? 'Built' : L < 7 ? 'Needs garage Lv 7' : !S.fuelOn ? 'Build the station first' : 'Build $1800'}</button></div>
+    <div class="item"><span>Fast pumps <span class="dim">lvl ${S.fuelUp}/3</span></span><button data-fuelup ${!S.fuelOn || S.fuelUp >= 3 ? 'disabled' : ''}>${S.fuelUp >= 3 ? 'Maxed' : 'Upgrade $' + 400 * (S.fuelUp + 1)}</button></div>
+    <div class="item"><span>Fast chargers <span class="dim">lvl ${S.evUp}/3</span></span><button data-evup ${!S.evOn || S.evUp >= 3 ? 'disabled' : ''}>${S.evUp >= 3 ? 'Maxed' : 'Upgrade $' + 600 * (S.evUp + 1)}</button></div>`;
+  const nu = Object.keys(LVU).map(Number).find(k => k > L);
+  $('achList').innerHTML = `<li><b>Garage level ${L}: ${LVN[L - 1]}</b> <span class="dim">· ${LV[L] == null ? 'max level' : 'XP ' + S.xp + '/' + LV[L]}</span></li>` +
+    (DEMO ? `<li class="dim">DEMO: garage levels 1 to 2 of 15. ${S.demoDone ? 'You finished the demo! ' : ''}${STORE_TEXT}</li>` : nu ? `<li class="dim">Next: level ${nu} unlocks ${LVU[nu]}</li>` : '<li class="dim">Every unlock reached. Free play!</li>') +
+    Object.keys(ACH).filter(k => !DEMO || DEMO_ACH.includes(k)).map(k => `<li class="${S.ach[k] ? 'done' : 'dim'}">${S.ach[k] ? '✔' : '○'} ${ACH[k][0]} <span class="dim">· ${ACH[k][1]}</span></li>`).join('') +
+    (DEMO ? '<li class="dim">More achievements are waiting in the full game.</li>' : '') + '<li class="job"><span class="dim">Garage Pass (save code)</span><span><button data-export>Show code</button> <button data-import>Load code</button></span></li>';
+  $('log').innerHTML = S.log.map(l => `<li>${l}</li>`).join('');
+  $('bPause').textContent = paused ? 'Resume' : 'Pause'; $('bSound').textContent = ['Muted', 'SFX', 'Sound'][S.sound]; $('bSound').classList.toggle('off', S.sound === 0); $('bSound').setAttribute('aria-pressed', S.sound > 0); $('bSound').title = ['Sound off', 'Sound effects only', 'Sound effects and music'][S.sound] + ' (tap to change)'; $('vol').value = S.vol;
+  $('tQueue').textContent = 'Queue' + (S.queue.length ? ` ${S.queue.length}` : '');
+  dirty = false;
+}
+function dyn() {
+  const L = level(), lo = LV[L - 1], hi = LV[L] == null ? lo : LV[L];
+  $('sMoney').textContent = '$' + Math.round(S.money); $('sDay').textContent = `D${S.day} ${Math.max(0, Math.ceil(DAY - S.dayT))}s` + (rush() ? ' RUSH' : ''); $('sDay').title = 'Day and seconds left in the day. RUSH means extra customers.';
+  $('sSat').textContent = `Sat ${Math.round(S.sat)}%`; $('sLvl').textContent = 'Lv ' + L;
+  $('xpfill').style.width = (hi > lo ? clamp((S.xp - lo) / (hi - lo) * 100, 0, 100) : 100) + '%';
+  document.querySelectorAll('[data-pat]').forEach(e => { const j = S.queue.find(x => x.id == e.dataset.pat); if (j) e.style.width = clamp(j.pat / j.max * 100, 0, 100) + '%'; });
+  document.querySelectorAll('[data-prog]').forEach(e => { const w = S.staff[e.dataset.prog]; if (w) e.style.width = clamp(w.prog * 100, 0, 100) + '%'; });
+}
+
+
+/* ---------- garage scene (canvas) ---------- */
+const SW = 360, SH = 250, BW = 84, BGAP = 6, BX0 = 3, FLOOR = 146, QY = 200, FY = 244, FXC = [44, 122, 238, 316];
+const IDLE = [[90, 162], [180, 162], [270, 162], [158, 248], [174, 248], [190, 248]];
+const CARCOL = ['#c94f3a', '#d9a83a', '#3f8f7d', '#4a76b8', '#8a5fb0', '#b8bec4'];
+const LABEL = { brake: 'Brakes', electric: 'Wiring', tire: 'Flat tire', fuel: 'Fuel', charge: 'EV charge' };
+const bayCx = i => BX0 + i * (BW + BGAP) + BW / 2, qx = i => 38 + i * 70;
+const cvs = $('scene'), cx = cvs && cvs.getContext ? cvs.getContext('2d') : null;
+let vis = {}, leaving = [], floats = [], sceneErr = false, clock = 0;
+if (!cx) $('sceneWrap').hidden = true;
+function floatText(x, y, txt, col) { floats.push({ x, y, txt, col, t: 0 }); }
+function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+function wheel(c, x, y, r, spin, flat) {
+  c.save(); c.translate(x, y + r * 0.4 * flat); c.scale(1, 1 - 0.4 * flat);
+  c.fillStyle = '#101214'; c.beginPath(); c.arc(0, 0, r, 0, 7); c.fill();
+  c.fillStyle = '#aab2ba'; c.beginPath(); c.arc(0, 0, r * 0.5, 0, 7); c.fill();
+  c.strokeStyle = '#4a5058'; c.lineWidth = 1.2;
+  for (let k = 0; k < 3; k++) { const a = spin + k * 2.094; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5); c.stroke(); }
+  c.restore();
+}
+function poly(c, pts) { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.fill(); }
+function drawCar(c, x, y, sc, col, o) {
+  const V = VEH[o.veh] || VEH.sedan, hx = V.hood[0], hy = V.hood[1];
+  c.save(); c.translate(x, y - (o.raise || 0)); c.scale(sc, sc);
+  c.fillStyle = col; rr(c, V.b[0], V.b[1], V.b[2], V.b[3], 4); c.fill();
+  if (V.bed) { c.fillRect(V.bed[0], V.bed[1], V.bed[2], V.bed[3]); c.fillStyle = '#00000055'; c.fillRect(V.bed[0] + 2, V.bed[1] + 2, V.bed[2] - 4, V.bed[3] - 2); c.fillStyle = col; }
+  poly(c, V.cab); c.fillStyle = '#bfe3f2'; V.win.forEach(w => poly(c, w));
+  c.fillStyle = '#fff6b0'; c.fillRect(V.b[0] + V.b[2] - 3, V.b[1] + 3, 3, 4); c.fillStyle = '#e03030'; c.fillRect(V.b[0], V.b[1] + 3, 3, 4);
+  if (V.sp) { c.fillStyle = '#1c1f22'; c.fillRect(V.sp[0], V.sp[1], V.sp[2], V.sp[3]); }
+  if (o.hood) { c.fillStyle = '#23282c'; c.fillRect(hx, hy, V.hood[2] - 1, 3); c.save(); c.translate(hx, hy); c.rotate(-1); c.fillStyle = col; rr(c, 0, -3, V.hood[2], 3, 1.2); c.fill(); c.restore(); }
+  wheel(c, V.rw, -V.wr, V.wr, o.spin, o.flat || 0);
+  if (!o.frontOff) wheel(c, V.fw, -V.wr, V.wr, o.spin, 0);
+  c.restore();
+}
+function mech(c, x, y, dir, col, hat, work, t) {
+  c.save(); c.translate(x, y); c.scale(dir, 1);
+  c.fillStyle = '#2a2a30'; c.fillRect(-5, -12, 4, 12); c.fillRect(1, -12, 4, 12);
+  c.fillStyle = col; rr(c, -6, -26, 12, 15, 3); c.fill();
+  c.fillStyle = '#e8c39e'; c.beginPath(); c.arc(0, -31, 5, 0, 7); c.fill();
+  c.fillStyle = hat; c.fillRect(-5.5, -37, 11, 4); c.fillRect(0, -34, 8, 2);
+  c.save(); c.translate(5, -23); c.rotate(work ? Math.sin(t * 10) * 0.7 - 0.5 : 0.5);
+  c.strokeStyle = col; c.lineWidth = 3; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, 0); c.lineTo(10, 0); c.stroke();
+  if (work) { c.strokeStyle = '#d5d9dc'; c.lineWidth = 2; c.beginPath(); c.moveTo(10, 0); c.lineTo(15, -3); c.stroke(); }
+  c.restore(); c.restore();
+}
+const bayWorker = i => (mg && mgBay === i) ? 'me' : S.staff.some(w => w.bay === i) ? 'emp' : null;
+const bayProg = i => { if (mg && mgBay === i && mg.prog) return mg.prog(); const w = S.staff.find(x => x.bay === i); return w ? w.prog : 0; };
+function renderCar(c, v, j, p, worker, t) {
+  const V = VEH[v.veh] || VEH.sedan, o = { spin: v.spin, veh: v.veh }, T = j.type, s = v.sc, bx = v.x, by = v.y, hx = V.hood[0], hy = V.hood[1];
+  if (T === 'tire') { o.flat = worker ? 1 - p : 1; o.raise = worker ? 9 : 0; }
+  if (T === 'brake') { o.raise = worker ? 9 : 0; o.frontOff = !!worker && p < 0.85; }
+  if (T === 'electric') o.hood = !!worker;
+  drawCar(c, bx, by, s, CARCOL[j.id % 6], o);
+  if (T === 'brake') {
+    if (o.frontOff) wheel(c, bx + V.fw * s, by - V.wr * s, V.wr * s, 0, 0);
+    if (!worker) { c.strokeStyle = '#ff5a3a'; c.lineWidth = 1.5; c.beginPath(); c.arc(bx + V.fw * s, by - V.wr * s, (V.wr + 2) * s, 0, 7); c.stroke(); }
+  }
+  if (T === 'tire' && worker) {
+    c.fillStyle = '#d8a020'; c.fillRect(bx + (V.rw - 3) * s, by - 9 * s, 6 * s, 9 * s);
+    c.fillStyle = '#ffffffaa'; for (let k = 0; k < 3; k++) { const u = (t * 2 + k / 3) % 1; c.beginPath(); c.arc(bx + V.rw * s + Math.sin(u * 9 + k) * 4, by - 12 * s - u * 14, 1.5 + u, 0, 7); c.fill(); }
+  }
+  if (T === 'electric') {
+    if (!worker) { c.fillStyle = '#8a9096'; for (let k = 0; k < 3; k++) { const u = (t * 0.8 + k / 3) % 1; c.globalAlpha = 1 - u; c.beginPath(); c.arc(bx + (hx + 8 + k * 2) * s, by + (hy - 14) * s - u * 16, 2 + u * 3, 0, 7); c.fill(); } c.globalAlpha = 1; }
+    else if (p > 0.95) { c.fillStyle = '#3fe08a'; c.beginPath(); c.arc(bx + (hx + 6) * s, by + (hy - 17) * s, 3, 0, 7); c.fill(); }
+    else { c.fillStyle = '#ffe27a'; for (let k = 0; k < Math.ceil((1 - p) * 5); k++) c.fillRect(bx + (hx + Math.random() * 14) * s, by + (hy - 3 - Math.random() * 12) * s, 2, 2); }
+  }
+}
+const fsWorker = k => (mg && mgKey === k) ? 'me' : S.staff.some(w => w.fs === k) ? 'emp' : null;
+const fsProg = k => { if (mg && mgKey === k && mg.prog) return mg.prog(); const w = S.staff.find(x => x.fs === k); return w ? w.prog : 0; };
+function drawForecourt(c, t) {
+  c.fillStyle = '#242a30'; c.fillRect(0, 204, SW, 46); c.strokeStyle = '#f2b630'; c.lineWidth = 1; c.setLineDash([8, 6]); c.beginPath(); c.moveTo(0, 204.5); c.lineTo(SW, 204.5); c.stroke(); c.setLineDash([]);
+  c.textAlign = 'center'; c.font = 'bold 8px system-ui,sans-serif'; const L = level();
+  [[0, 150, S.fuelOn, 'Fuel station', 3, '#d9482b'], [210, 360, S.evOn, 'EV charging', 7, '#3fa796']].forEach(([x0, x1, on, name, lv, col], bi) => {
+    if (on) {
+      c.fillStyle = col; c.fillRect(x0 + 2, 206, x1 - x0 - 4, 3);
+      for (let i = 0; i < 2; i++) {
+        const px = FXC[bi * 2 + i] - 30;
+        if (bi === 0) { c.fillStyle = '#c8cdd2'; c.fillRect(px - 5, 222, 10, 26); c.fillStyle = '#d9482b'; c.fillRect(px - 5, 222, 10, 5); c.fillStyle = '#12161a'; c.fillRect(px - 3, 229, 6, 5); c.fillStyle = '#3fe08a'; c.fillRect(px - 2, 230, 4, 2); }
+        else { c.fillStyle = '#e8ecef'; c.fillRect(px - 3, 222, 6, 26); c.fillStyle = Math.sin(t * 4 + i) > 0 ? '#3fe08a' : '#2a8a5f'; c.fillRect(px - 2, 224, 4, 4); }
+      }
+    } else {
+      c.strokeStyle = '#555'; c.setLineDash([4, 4]); c.strokeRect(x0 + 3, 208, x1 - x0 - 6, 40); c.setLineDash([]);
+      c.fillStyle = '#9aa3ab'; c.fillText(name, (x0 + x1) / 2, 224); c.fillStyle = '#f2b630'; c.fillText(DEMO ? 'Full game' : bi && !S.fuelOn ? 'Build the fuel station first' : L < lv ? 'Needs garage Lv ' + lv : 'Tap to build', (x0 + x1) / 2, 237);
+    }
+  });
+}
+function drawScene(dt) {
+  if (!cx || sceneErr) return;
+  try {
+    clock += dt; const c = cx, t = clock; c.setTransform(2, 0, 0, 2, 0, 0); c.clearRect(0, 0, SW, SH);
+    c.fillStyle = '#2b3238'; c.fillRect(0, 0, SW, 150); c.fillStyle = '#1d2125'; c.fillRect(0, 150, SW, 100);
+    c.fillStyle = '#4a4f55'; c.fillRect(0, FLOOR, SW, 4);
+    drawForecourt(c, t);
+    c.textAlign = 'center'; c.font = 'bold 9px system-ui,sans-serif';
+    for (let i = 0; i < 4; i++) {
+      const x0 = BX0 + i * (BW + BGAP);
+      if (i < S.bays) {
+        c.fillStyle = '#353d45'; c.fillRect(x0, 12, BW, 134); c.fillStyle = '#4d565f';
+        for (let k = 0; k < 3; k++) c.fillRect(x0 + 3, 15 + k * 5, BW - 6, 3);
+        c.strokeStyle = '#f2b630'; c.lineWidth = 2; c.strokeRect(x0 + 1, 12, BW - 2, 134);
+        c.fillStyle = '#9aa3ab'; c.fillText('Bay ' + (i + 1), x0 + BW / 2, 42);
+      } else {
+        c.strokeStyle = '#555'; c.lineWidth = 1; c.setLineDash([4, 4]); c.strokeRect(x0 + 1, 12, BW - 2, 134); c.setLineDash([]);
+        c.fillStyle = i === S.bays ? '#f2b630' : '#666'; c.fillText(DEMO ? 'Full game' : i === S.bays ? 'Build bay' : 'Locked', x0 + BW / 2, 80);
+        if (i === S.bays && !DEMO) c.fillText('$' + cost.bay(), x0 + BW / 2, 93);
+      }
+    }
+    const act = {};
+    S.queue.forEach((j, k) => { act[j.id] = { x: qx(k), y: QY, sc: 0.78, q: true, j }; });
+    S.bayJobs.forEach((j, b) => { if (j) act[j.id] = { x: bayCx(b), y: FLOOR, sc: 1, bay: b, j }; });
+    S.fuelSlots.forEach((j, i) => { if (j) act[j.id] = { x: FXC[i], y: FY, sc: 0.6, f: 'f' + i, j }; }); S.evSlots.forEach((j, i) => { if (j) act[j.id] = { x: FXC[2 + i], y: FY, sc: 0.6, f: 'e' + i, j }; });
+    const k5 = Math.min(1, dt * 5);
+    for (const id in act) {
+      const a = act[id]; let v = vis[id] || (vis[id] = { id: +id, veh: a.j.veh || 'sedan', f: !!a.f, x: a.q || a.f ? -60 : a.x, y: a.y, sc: a.sc, spin: 0, res: null });
+      const dx = (a.x - v.x) * k5; v.x += dx; v.spin += dx / 7; v.y += (a.y - v.y) * k5; v.sc += (a.sc - v.sc) * k5;
+    }
+    for (const id in vis) if (!act[id]) { const v = vis[id]; delete vis[id]; v.dir = v.res === 'lost' ? -1 : 1; v.vx = 0; leaving.push(v); }
+    for (const id in act) {
+      const a = act[id], v = vis[id], j = a.j;
+      if (a.bay != null) {
+        const w = bayWorker(a.bay), p = bayProg(a.bay), arrived = Math.abs(a.x - v.x) < 3;
+        renderCar(c, v, j, arrived ? p : 0, arrived ? w : null, t);
+        if (arrived) {
+          c.fillStyle = '#fff'; c.fillText(jl(j) + ' · $' + j.pay, a.x, 62);
+          if (!w) { c.fillStyle = '#f2b630'; c.globalAlpha = 0.6 + 0.4 * Math.sin(t * 5); c.fillText(j.state === 'waiting' ? 'Tap to repair' : '', a.x, 75); c.globalAlpha = 1; }
+          else { c.fillStyle = '#12161a'; c.fillRect(a.x - 30, 70, 60, 6); c.fillStyle = '#3fa796'; c.fillRect(a.x - 30, 70, 60 * p, 6); }
+        }
+      } else if (a.f) {
+        const w = fsWorker(a.f), p = fsProg(a.f), arrived = Math.abs(a.x - v.x) < 3, ev = j.type === 'charge', px = a.x - 30;
+        renderCar(c, v, j, 0, null, t);
+        if (arrived) {
+          if (w) { c.strokeStyle = ev ? '#3fe08a' : '#222'; c.lineWidth = 1.6; c.beginPath(); c.moveTo(px, 232); c.quadraticCurveTo(px + 6, 246, v.x - 18, v.y - 12); c.stroke(); }
+          c.font = 'bold 8px system-ui,sans-serif'; c.fillStyle = '#fff'; c.fillText(LABEL[j.type] + ' $' + j.pay, a.x, 213);
+          c.fillStyle = '#12161a'; c.fillRect(a.x - 18, 215, 36, 4);
+          if (w) { c.fillStyle = '#3fa796'; c.fillRect(a.x - 18, 215, 36 * p, 4); } else { const f = clamp(j.pat / j.max, 0, 1); c.fillStyle = f > 0.3 ? '#f2b630' : '#e0553a'; c.fillRect(a.x - 18, 215, 36 * f, 4); }
+        }
+      } else {
+        renderCar(c, v, j, 0, null, t); c.font = 'bold 8px system-ui,sans-serif'; c.fillStyle = '#fff'; c.fillText(jl(j), v.x, 171);
+        const f = clamp(j.pat / j.max, 0, 1); c.fillStyle = '#12161a'; c.fillRect(v.x - 20, 175 - 14, 40, 4); c.fillStyle = f > 0.3 ? '#f2b630' : '#e0553a'; c.fillRect(v.x - 20, 161, 40 * f, 4); c.font = 'bold 9px system-ui,sans-serif';
+      }
+    }
+    for (let i = leaving.length - 1; i >= 0; i--) {
+      const v = leaving[i]; v.vx += dt * 220; v.x += v.dir * v.vx * dt; v.y += ((v.f ? FY : QY) - v.y) * Math.min(1, dt * 4); v.sc += ((v.f ? 0.6 : 0.78) - v.sc) * Math.min(1, dt * 4); v.spin += v.dir * v.vx * dt / 7;
+      drawCar(c, v.x, v.y, v.sc, CARCOL[v.id % 6] || '#999', { spin: v.spin, veh: v.veh });
+      if (v.res !== 'ok') { c.fillStyle = '#ff6b4a'; c.fillText('!', v.x, v.y - 34 * v.sc); }
+      if (v.x > SW + 70 || v.x < -70) leaving.splice(i, 1);
+    }
+    S.bayJobs.forEach((j, b) => { const w = bayWorker(b); if (j && w && Math.abs(vis[j.id] && vis[j.id].x - bayCx(b)) < 3) { const left = j.type === 'tire'; mech(c, bayCx(b) + (left ? -40 : 40), FLOOR + 12, left ? 1 : -1, w === 'me' ? '#3b6fc4' : '#2f9a85', w === 'me' ? '#f2b630' : '#fff', true, t); } });
+    [S.fuelSlots, S.evSlots].forEach((arr, ai) => arr.forEach((j, i) => { const k = (ai ? 'e' : 'f') + i, w = fsWorker(k), cx = FXC[ai * 2 + i]; if (j && w && vis[j.id] && Math.abs(vis[j.id].x - cx) < 3) mech(c, cx + 30, FY + 3, -1, w === 'me' ? '#3b6fc4' : '#2f9a85', w === 'me' ? '#f2b630' : '#fff', true, t); }));
+    let ii = 0; S.staff.forEach(w => { if (w.bay == null && !w.fs) { const p = IDLE[ii++]; if (p) mech(c, p[0], p[1], 1, '#2f9a85', '#fff', false, t); } });
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.t += dt; c.globalAlpha = clamp(1.2 - f.t, 0, 1); c.fillStyle = f.col; c.font = 'bold 13px system-ui,sans-serif'; c.fillText(f.txt, f.x, f.y - f.t * 24); c.globalAlpha = 1; if (f.t > 1.2) floats.splice(i, 1); }
+  } catch (e) { sceneErr = true; console.error(e); toast('Scene drawing stopped: ' + e.message, true); }
+}
+function sceneTap(x, y) {
+  if (mg || S.over || !$('modal').hidden) return;
+  if (y >= 204) {
+    const ks = ['f0', 'f1', 'e0', 'e1'], i = FXC.reduce((b, cx, n) => Math.abs(cx - x) < Math.abs(FXC[b] - x) ? n : b, 0), ev = i >= 2;
+    if (!(ev ? S.evOn : S.fuelOn)) { toast(DEMO ? 'The fuel station and EV charging are part of the full game' : ev ? 'Build EV charging in the Fuel tab (garage Lv 7)' : 'Build the fuel station in the Fuel tab (garage Lv 3)'); setTab('fuel'); return; }
+    const j = fsJob(ks[i]); if (!j) toast('Waiting for a customer'); else if (j.state === 'waiting') startFuel(ks[i]); else toast(j.state === 'auto' ? 'An employee is serving this car' : 'Service in progress');
+    return;
+  }
+  if (y < 150) {
+    const i = Math.floor((x - BX0) / (BW + BGAP)); if (i < 0 || i > 3) return;
+    if (i >= S.bays) { toast(DEMO ? 'The full game has up to 4 bays' : i === S.bays ? `Build this bay in the Shop ($${cost.bay()})` : 'Build the earlier bay first'); return; }
+    const j = S.bayJobs[i];
+    if (!j) { if (S.queue.length) sendToBay(S.queue[0].id, i); else toast('No customers waiting'); }
+    else if (j.state === 'waiting') startRepair(i);
+    else toast(j.state === 'auto' ? 'An employee is repairing this car' : 'Repair in progress');
+  } else {
+    let best = -1, bd = 40; S.queue.forEach((j, k) => { const d = Math.abs(qx(k) - x); if (d < bd) { bd = d; best = k; } });
+    if (best >= 0 && !sendToBay(S.queue[best].id)) toast('All bays are busy', true);
+  }
+}
+if (cvs) cvs.addEventListener('pointerdown', e => { const r = cvs.getBoundingClientRect(); sceneTap((e.clientX - r.left) / r.width * SW, (e.clientY - r.top) / r.height * SH); });
+
+/* ---------- tabs ---------- */
+let tab = 'shop';
+function setTab(n) {
+  tab = n;
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.dataset.pane === n));
+  document.querySelectorAll('#tabs button').forEach(b => { const on = b.dataset.tab === n; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+}
+
+/* ---------- input ---------- */
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t) return; const d = t.dataset; if (t.id !== 'act' && !t.classList.contains('pad') && t.id !== 'bSound' && t.id !== 'hold') sfx('click');
+  try {
+    if (d.tab) setTab(d.tab);
+    else if (d.send) sendToBay(+d.send);
+    else if (d.repair) startRepair(+d.repair);
+    else if (d.tool && S.tools[d.tool] < TMAX) { const l = S.tools[d.tool]; if (level() < l + 1) toast(`Reach garage level ${l + 1} first`, true); else if (spend(cost.tool(l), TOOLS[d.tool])) { S.tools[d.tool]++; checkAch(); } }
+    else if ('train' in d && !S.train) { if (level() < 11) toast('Reach garage level 11 first', true); else if (spend(cost.train(), 'a training center')) { S.train = true; log('Training center built: employees can reach skill 7'); } }
+    else if ('fuelbuild' in d && !S.fuelOn) { if (level() < 3) toast('Reach garage level 3 first', true); else if (spend(800, 'a fuel station')) { S.fuelOn = true; S.fuelT = 3; log('Fuel station built: customers will pull in for fuel'); checkAch(); } }
+    else if ('evbuild' in d && !S.evOn) { if (level() < 7 || !S.fuelOn) toast('Needs the fuel station and garage level 7', true); else if (spend(1800, 'EV charging')) { S.evOn = true; S.fuelT = 3; log('EV charging built'); checkAch(); } }
+    else if ('fuelup' in d && S.fuelOn && S.fuelUp < 3) { if (spend(400 * (S.fuelUp + 1), 'fast pumps')) S.fuelUp++; }
+    else if ('evup' in d && S.evOn && S.evUp < 3) { if (spend(600 * (S.evUp + 1), 'fast chargers')) S.evUp++; }
+    else if ('export' in d) showExport();
+    else if ('import' in d) showImport();
+    else if ('desk' in d && !S.desk) { if (spend(cost.desk(), 'a receptionist')) { S.desk = true; log('Receptionist now sends waiting cars to free bays'); } }
+    else if ('hire' in d && S.staff.length < maxStaff()) { if (spend(cost.hire(), 'a new employee')) { S.staff.push({ bay: null, fs: null, prog: 0, jobs: 0 }); checkAch(); } }
+    else if ('bay' in d && S.bays < (DEMO ? 2 : 4)) { if (spend(cost.bay(), 'a new service bay')) { S.bays++; S.bayJobs.push(null); checkAch(); } }
+    else if (t.id === 'act' && mg && mg.act) mg.act();
+  } catch (err) { console.error(err); toast('Something went wrong: ' + err.message, true); }
+});
+$('bPause').onclick = () => { paused = !paused; dirty = true; };
+$('bSound').onclick = () => { S.sound = (S.sound + 2) % 3; dirty = true; sfx('click'); };
+$('vol').oninput = e => { S.vol = +e.target.value; sfx('click'); };
+$('bSave').onclick = () => save(true);
+$('bLoad').onclick = () => load(true);
+$('bHelp').onclick = showHelp;
+$('bRestart').onclick = () => modal('<h2>Restart?</h2><p>This erases your current shop and saved game.</p>', [['Cancel', closeModal], ['Restart', () => { closeModal(); restart(); }, 'go']]);
+document.addEventListener('keyup', e => { if (e.key === ' ' && mg) { e.preventDefault(); if (mg.up) mg.up(); } });
+document.addEventListener('keydown', e => {
+  if (e.key === ' ' && mg && mg.act && !e.repeat) { e.preventDefault(); mg.act(); }
+  if (e.key === ' ' && mg && mg.down && !e.repeat) { e.preventDefault(); mg.down(); }
+  if (e.key === 'Escape' && !$('modal').hidden && !mg) closeModal();
+  if ((e.key === 'p' || e.key === 'P') && !mg && $('modal').hidden) { paused = !paused; dirty = true; }
+});
+window.addEventListener('error', e => toast('Unexpected error: ' + e.message, true));
+document.addEventListener('visibilitychange', () => { if (document.hidden) { paused = true; dirty = true; } });
+
+/* ---------- main loop ---------- */
+function frame(t) {
+  const dt = Math.min((t - last) / 1000, 0.25); last = t;
+  try {
+    if (mg) mg.update(dt);
+    if (!paused && !modalPause) { tick(dt); }
+    if (dirty) render(); dyn(); drawScene(dt); syncMusic();
+  } catch (err) { console.error(err); toast('Game error: ' + err.message, true); }
+  requestAnimationFrame(frame);
+}
+if (load(false)) toast('Welcome back. Saved game loaded');
+$('demoTag').hidden = !DEMO; setTab(tab); render();
+if (!S.tutorial) showHelp();
+requestAnimationFrame(frame);
+window.__TGT = { get S() { return S; }, get mg() { return mg; }, tick, spawn, sendToBay, startRepair, save, load, finish, get paused() { return paused; }, refresh() { dirty = true; }, get vis() { return vis; }, get leaving() { return leaving; }, get level() { return level(); }, interval, jobTime, startFuel, finishF, spawnFuel, fsJob, maxStaff, findFuel, DEMO, DEMO_XP, showDemoEnd, sfx, audioLevel, get musicOn() { return musicOn; }, makeCode, readCode, VEH }; // test hooks
+})();
+
+</script>
+</body></html>
